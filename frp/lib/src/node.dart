@@ -43,8 +43,28 @@ abstract class Node<TYPE> {
     });
   }
 
-  SyncDerivedNode derive(Function map);
-  SyncDerivedNode filter(Function map);
+  /**
+    * For debug purposes
+    * @param listener Listen to a node event
+    */
+  void onEvent(Function listener){
+    outputStream.listen((NodeEvent evt){
+      listener(evt);
+    });
+  }
+
+  DerivedNode derive(Function map){
+    return new DerivedNode(stream:outputStream, dataProvider:map);
+  }
+
+  DerivedNode safeDerive(Function map){
+    return new FilteredNode(stream:outputStream, dataProvider:(TYPE value)=>value!=null).derive(map);
+  }
+
+  DerivedNode filter(Function map){
+    return new FilteredNode(stream:outputStream, dataProvider:map);
+  }
+
   SyncDerivedNode sample(int internalInMs);
   SyncDerivedNode add(Node n);
   SyncDerivedNode or(Node n);
@@ -68,21 +88,13 @@ abstract class Node<TYPE> {
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  static NodeEvent createEvent(TYPE value){
+  static NodeEvent createEvent(value){
     // create a event with the latest value
     NodeEvent evt = new NodeEvent(value);
     return evt;
   }
 }
 
-
-class AsyncMixin{
-
-}
-
-class SyncMixin{
-
-}
 
 class ValueNode<TYPE> extends Node<TYPE>{
   ValueNode({Stream<TYPE> stream, TYPE initValue}):super._internal(stream:stream){
@@ -107,9 +119,6 @@ class ValueNode<TYPE> extends Node<TYPE>{
     onInputValue(Node.createEvent(value));
   }
 
-  SyncDerivedNode derive(Function map){
-    return new DerivedNode(stream:outputStream, dataProvider:map);
-  }
 
   //--------------------------------------------------------------------------------------------------------------------
   //
@@ -158,13 +167,20 @@ class DerivedNode<TYPE> extends Node<TYPE>{
       streamController.add(evt);
     }
   }
-
 }
 
-class AsyncDerivedNode<TYPE> extends DerivedNode<TYPE> with AsyncMixin{
+class FilteredNode<TYPE> extends DerivedNode<TYPE>{
+  FilteredNode({Stream<TYPE> stream, Function dataProvider}):super(stream:stream, dataProvider:dataProvider){
+  }
 
-}
-
-class SyncDerivedNode<TYPE> extends DerivedNode<TYPE> with SyncMixin{
-
+  void onInputValue(NodeEvent evt){
+    TYPE newValue = dataProvider(evt.value);
+    if(newValue != lastValue && newValue){
+      // cache the latest value
+      lastValue = newValue;
+      evt.log(this);
+      // issue the event
+      streamController.add(evt);
+    }
+  }
 }

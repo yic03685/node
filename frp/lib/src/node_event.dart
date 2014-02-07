@@ -2,12 +2,12 @@ part of node;
 
 class Step{
 
-  Step(Node this.node, Dynamic this.value){
+  Step(Node this.node, dynamic this.value){
 
   }
 
   Node    node;
-  Dynamic value;
+  dynamic value;
 
 }
 
@@ -22,8 +22,8 @@ class NodeEvent  {
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  List<Node> path;
-  Dynamic value;
+  List<Step> path;
+  dynamic value;
 
   //--------------------------------------------------------------------------------------------------------------------
   //

@@ -12,7 +12,7 @@ void main(){
   test("Can listen to a value node", (){
 
     Stream<int> s = createIntStream();
-    ValueNode<int> node = new Node<int>(stream:s,initValue:0);
+    Node<int> node = new Node<int>(stream:s,initValue:0);
 
     List<int> output = [];
     node.onValue((int i)=>output.add(i));
@@ -24,7 +24,7 @@ void main(){
 
   test("Can give a value directly to a value node", (){
 
-    ValueNode<int> node = new Node<int>(initValue:0);
+    Node<int> node = new Node<int>(initValue:0);
 
     List<int> output = [];
     node.onValue((int i)=>output.add(i));
@@ -39,7 +39,7 @@ void main(){
 
   test("Can initiate a value node without initial value", (){
 
-    ValueNode<int> node = new Node<int>();
+    Node<int> node = new Node<int>();
 
     List<int> output = [];
     node.onValue((int i)=>output.add(i));
@@ -55,7 +55,7 @@ void main(){
   test("Can initiate a value node with stream without initial value", (){
 
     Stream<int> s = createIntStream();
-    ValueNode<int> node = new Node<int>(stream:s);
+    Node<int> node = new Node<int>(stream:s);
 
 
     List<int> output = [];
@@ -84,14 +84,67 @@ void main(){
   test("Can derive a node with a mapping function", (){
 
     Stream<int> s = createIntStream().asBroadcastStream();
-    ValueNode<int> node = new Node<int>(stream:s,initValue:0);
-    ValueNode<int> deNode = node.derive((int value)=>value+1);
+    Node<int> node = new Node<int>(stream:s,initValue:0);
+    Node<int> deNode = node.derive((int value)=>value+1);
+    Node<int> deNode2 = deNode.derive((int value)=>value+1);
 
     List<int> output = [];
     deNode.onValue((int i)=>output.add(i));
 
     new Future.delayed(new Duration(milliseconds:1000), (){
-      expect(output, [1,2,3,4,5,6]);
+      expect(output, [2,3,4,5,6,7]);
     });
   });
+
+  test("Can have a valid node event (Path is valid)", (){
+
+    Node<int> node = new Node<int>(initValue:0);
+    Node<int> deNode = node.derive((int value)=>value+1);
+    Node<int> deNode2 = deNode.derive((int value)=>value+1);
+
+    node<=1;
+
+    List output = [];
+    deNode.onEvent((NodeEvent evt){
+      output.addAll(evt.path.map((Step s)=>s.value));
+    });
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [0,1,2,1,2,3]);
+    });
+  });
+
+  test("Can filter data", (){
+
+    Node<int> node = new Node<int>(initValue:0);
+    Node<int> filteredNode = node.filter((int value)=>value>0);
+
+    node<=1;
+
+    Node<int> deNode = filteredNode.derive((int value)=>value+1);
+
+    List<int> output = [];
+    deNode.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [2]);
+    });
+  });
+
+  test("Can safe derive a node", (){
+
+    Node<int> node = new Node<int>(initValue:0);
+    Node<int> deNode = node.safeDerive((int value)=>value+1);
+
+    node<=null;
+
+    List<int> output = [];
+    deNode.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [1]);
+    });
+  });
+
+
 }
