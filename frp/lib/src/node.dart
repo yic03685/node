@@ -2,22 +2,13 @@ part of node;
 
 abstract class Node<TYPE> {
 
-  factory Node({Stream stream, TYPE initValue,Function dataProvider}){
-    if(dataProvider == null){
-      Stream newStream = stream == null? null : stream.map((TYPE value)=>Node.createEvent(value));
-      return new ValueNode(stream:newStream,initValue:initValue);
-    }
-    else{
-      return new DrivedNode(stream:stream,dataProvider:dataProvider);
-    }
-  }
-
-  Node._internal({Stream<NodeEvent> stream}) {
+  Node({Stream<NodeEvent> stream}) {
     init();
 
     if(stream!=null){
       stream.listen(onInputValue);
     }
+
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -29,7 +20,7 @@ abstract class Node<TYPE> {
   StreamController<TYPE>  streamController;
   Stream<NodeEvent>       outputStream;
   TYPE                    lastValue;
-
+  bool                    dataReady = false;
 
   //--------------------------------------------------------------------------------------------------------------------
   //
@@ -37,7 +28,7 @@ abstract class Node<TYPE> {
   //
   //--------------------------------------------------------------------------------------------------------------------
   void onValue(Function listener){
-    // register with the output stream
+  // register with the output stream
     outputStream.listen((NodeEvent evt){
       listener(evt.value);
     });
@@ -53,21 +44,21 @@ abstract class Node<TYPE> {
     });
   }
 
-  DerivedNode derive(Function map){
-    return new DerivedNode(stream:outputStream, dataProvider:map);
+  Node derive(Function map){
+    return new InjectiveNode<dynamic>(this, map);
   }
 
-  DerivedNode safeDerive(Function map){
-    return new FilteredNode(stream:outputStream, dataProvider:(TYPE value)=>value!=null).derive(map);
+  Node safeDerive(Function map){
+    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).derive(map);
   }
 
-  DerivedNode filter(Function map){
-    return new FilteredNode(stream:outputStream, dataProvider:map);
+  Node filter(Function map){
+    return new FilteredNode<dynamic>(this, map);
   }
 
-  SyncDerivedNode sample(int internalInMs);
-  SyncDerivedNode add(Node n);
-  SyncDerivedNode or(Node n);
+  Node sample(int internalInMs);
+  Node add(Node n);
+  Node or(Node n);
 
   //--------------------------------------------------------------------------------------------------------------------
   //
@@ -88,18 +79,32 @@ abstract class Node<TYPE> {
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  static NodeEvent createEvent(value){
-    // create a event with the latest value
-    NodeEvent evt = new NodeEvent(value);
-    return evt;
+  static Stream<NodeEvent> joinInputStreams(List<Node> inputs){
+    if(inputs == null)
+      throw "Not a valid input node";
+
+    if(inputs.length==1){
+      return inputs[0].outputStream;
+    }
+    else{
+      StreamController<NodeEvent> controller = new StreamController<NodeEvent>();
+      inputs.forEach((Node node)=>node.outputStream.listen((NodeEvent evt)=>controller.add(evt)));
+      return controller.stream;
+    }
+  }
+
+  static Node join(List<Node> nodes, Function mapping, [isSync=true]){
+    if(isSync)
+      return new SyncMapNode(nodes, mapping);
+    else
+      return new AsyncMapNode(nodes, mapping);
   }
 }
 
-
 class ValueNode<TYPE> extends Node<TYPE>{
-  ValueNode({Stream<TYPE> stream, TYPE initValue}):super._internal(stream:stream){
+  ValueNode({Stream<TYPE> stream, TYPE initValue}):super(stream:stream==null?null:stream.map((TYPE value)=>NodeEvent.next(value))){
     if(initValue!=null){
-      onInputValue(Node.createEvent(initValue));
+      onInputValue(NodeEvent.next(initValue));
     }
   }
 
@@ -116,7 +121,7 @@ class ValueNode<TYPE> extends Node<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   void operator <=(TYPE value){
-    onInputValue(Node.createEvent(value));
+    onInputValue(NodeEvent.next(value));
   }
 
 
@@ -126,19 +131,27 @@ class ValueNode<TYPE> extends Node<TYPE>{
   //
   //--------------------------------------------------------------------------------------------------------------------
 
+
   void onInputValue(NodeEvent evt){
     // cache the latest value
     lastValue = evt.value;
-    // log event
-    evt.log(this);
+    // update the status of this node
+    dataReady = true;
     // issue the event
     streamController.add(evt);
   }
 }
 
 class DerivedNode<TYPE> extends Node<TYPE>{
-  DerivedNode({Stream<TYPE> stream, Function dataProvider}):super._internal(stream:stream){
-    this.dataProvider = dataProvider;
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Constructor
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  DerivedNode(Stream stream, Function mapping):super(stream:stream){
+    this.mapping = mapping;
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -147,7 +160,28 @@ class DerivedNode<TYPE> extends Node<TYPE>{
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  Function  dataProvider;
+  Function  mapping;
+}
+
+class InjectiveNode<TYPE> extends DerivedNode<TYPE>{
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Constructor
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  InjectiveNode(Node input, Function mapping):super(input.outputStream, mapping){
+    this.input = input;
+  }
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Variables
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  Node      input;
 
   //--------------------------------------------------------------------------------------------------------------------
   //
@@ -156,31 +190,119 @@ class DerivedNode<TYPE> extends Node<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   void onInputValue(NodeEvent evt){
-    TYPE newValue = dataProvider(evt.value);
+    TYPE newValue = mapping(evt.value);
     if(newValue != lastValue){
       // cache the latest value
       lastValue = newValue;
-      // update event value
-      evt.value = lastValue;
-      evt.log(this);
+      // update the status of this node
+      dataReady = true;
       // issue the event
-      streamController.add(evt);
+      streamController.add(NodeEvent.next(lastValue, this, evt));
     }
   }
 }
 
-class FilteredNode<TYPE> extends DerivedNode<TYPE>{
-  FilteredNode({Stream<TYPE> stream, Function dataProvider}):super(stream:stream, dataProvider:dataProvider){
+class FilteredNode<TYPE> extends InjectiveNode<TYPE>{
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Constructor
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  FilteredNode(Node input, Function mapping):super(input, mapping){
+  }
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Private Methods
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  void onInputValue(NodeEvent evt){
+    TYPE newValue = mapping(evt.value);
+    if(newValue != lastValue && newValue){
+      // update the status of this node
+      dataReady = true;
+      // cache the latest value
+      lastValue = newValue;
+      // issue the event
+      streamController.add(NodeEvent.next(evt.value, this, evt));
+    }
+  }
+}
+
+class MapNode<TYPE> extends DerivedNode<TYPE>{
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Constructor
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  MapNode(List<Node> inputs, Function mapping):super(Node.joinInputStreams(inputs),mapping){
+    this.inputs = inputs;
+  }
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Variables
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  List<Node>     inputs;
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Private Methods
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  bool dataIsReady()=>true;
+
+  TYPE getDataFromInputs(NodeEvent evt){
+    Node eventTrigger = evt.node;
+
+    List params = new List(inputs.length);
+    for(int i=0; i<inputs.length; ++i){
+      if(inputs[i]!=eventTrigger)
+        params[i] = inputs[i].lastValue;
+      else
+        params[i] = evt.value;
+    }
+    return Function.apply(mapping,(params));
   }
 
   void onInputValue(NodeEvent evt){
-    TYPE newValue = dataProvider(evt.value);
-    if(newValue != lastValue && newValue){
-      // cache the latest value
-      lastValue = newValue;
-      evt.log(this);
-      // issue the event
-      streamController.add(evt);
+    if(dataIsReady()){
+      TYPE newValue = getDataFromInputs(evt);
+      if(newValue != lastValue){
+        // cache the latest value
+        lastValue = newValue;
+        // update the status of this node
+        dataReady = true;
+        // issue the event
+        streamController.add(NodeEvent.next(lastValue, this, evt));
+      }
     }
+  }
+}
+
+class SyncMapNode<TYPE> extends MapNode<TYPE>{
+  SyncMapNode(List<Node> input, Function mapping):super(input, mapping){
+  }
+
+  bool dataIsReady(){
+    return inputs.every((Node node)=>node.dataReady);
+  }
+}
+
+class AsyncMapNode<TYPE> extends MapNode<TYPE>{
+
+  AsyncMapNode(List<Node> input, Function mapping):super(input, mapping){
+  }
+
+  bool dataIsReady(){
+    return inputs.any((Node node)=>node.dataReady);
   }
 }

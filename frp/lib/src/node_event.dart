@@ -1,23 +1,7 @@
 part of node;
 
-class Step{
-
-  Step(Node this.node, dynamic this.value){
-
-  }
-
-  Node    node;
-  dynamic value;
-
-  String toString(){
-    return value.toString();
-  }
-
-}
-
 class NodeEvent  {
-  NodeEvent(this.value) {
-    init();
+  NodeEvent._internal(dynamic this._currentValue, [Node this._currentNode, NodeEvent this._src]) {
   }
 
   //--------------------------------------------------------------------------------------------------------------------
@@ -26,8 +10,9 @@ class NodeEvent  {
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  List<Step> path;
-  dynamic value;
+  Node      _currentNode;
+  dynamic   _currentValue;
+  NodeEvent _src;
 
   //--------------------------------------------------------------------------------------------------------------------
   //
@@ -35,16 +20,21 @@ class NodeEvent  {
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  void log(Node n){
-    path.add(new Step(n,value));
+
+  Node get node=>_currentNode;
+  dynamic get value=>_currentValue;
+  NodeEvent get src=> _src;
+
+  List<Step> get path{
+    List<Step> p = [value];
+    NodeEvent current = _src;
+    while(current!=null){
+      p.add(current.value);
+      current = current.src;
+    }
+    return p.reversed.toList();
   }
 
-  Node lastNode(){
-    if(path.length == 0)
-      return null;
-    else
-      return path[path.length-1].node;
-  }
 
   void trace(){
     if(path.length==0){
@@ -66,8 +56,22 @@ class NodeEvent  {
   //--------------------------------------------------------------------------------------------------------------------
 
   void init(){
-    path = new List<Step>();
   }
+
+  //--------------------------------------------------------------------------------------------------------------------
+  //
+  //                                          Static Methods
+  //
+  //--------------------------------------------------------------------------------------------------------------------
+
+  static create(dynamic value){
+
+  }
+
+  static next(dynamic value, [Node currentNode, NodeEvent src]){
+    return new NodeEvent._internal(value, currentNode, src);
+  }
+
 }
 
 class NextEvent<TYPE> extends NodeEvent<TYPE>{
