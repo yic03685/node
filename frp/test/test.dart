@@ -342,4 +342,130 @@ void main(){
     });
   });
 
+  test("Can derive nodes between using sync or async mapping", (){
+
+    ValueNode<int> node = new ValueNode<int>(initValue:2);
+    Node<int> node1 = node.derive((int value)=>value+1).deriveFromFuture((int value){
+
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:500), (){
+        completer.complete(value+1);
+      });
+      return completer.future;
+    }).filter((int value){
+      return value>3;
+    }).derive((int value)=>value+1);
+
+    node<=3;
+    node<=1;
+
+    List<int> output = [];
+    node1.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [5,6]);
+    });
+  });
+
+  test("Can derive nodes between using sync or async mapping and have correct path", (){
+
+    ValueNode<int> node = new ValueNode<int>(initValue:2);
+    Node<int> node1 = node.derive((int value)=>value+1).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:500), (){
+        completer.complete(value+1);
+      });
+      return completer.future;
+    }).filter((int value){
+      return value>3;
+    }).derive((int value)=>value+1);
+
+    List<int> path = [];
+    node1.onEvent((NodeEvent evt){
+      path.addAll(evt.path.map((dynamic value)=>value));
+    });
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(path, [2,3,4,4,5]);
+    });
+  });
+
+  test("Can join several (synchronous or asynchronous) nodes", (){
+    ValueNode<int> node1 = new ValueNode<int>(initValue:1);
+    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:500), (){
+        completer.complete(value+1);
+      });
+      return completer.future;
+    });
+    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:700), (){
+        completer.complete(value+1);
+      });
+      return completer.future;
+    });
+    Node<int> node4 = Node.join([node1, node2, node3], (int value1, int value2, int value3)=>value1+value2+value3);
+
+    List<int> output = [];
+    node4.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [7]);
+    });
+  });
+
+  test("Can join several (synchronous or asynchronous) nodes", (){
+    ValueNode<int> node1 = new ValueNode<int>(initValue:1);
+    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:500), (){
+        completer.complete(value+1);
+      });
+      return completer.future;
+    });
+    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:700), (){
+        completer.complete(value+1);
+      });
+      return completer.future;
+    });
+    Node<int> node4 = Node.join([node1, node2, node3], (int value1, int value2, int value3)=>value1+value2+value3);
+
+    List<int> output = [];
+    node4.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [7]);
+    });
+  });
+
+  test("Can join several nodes with different types", (){
+    ValueNode<int> node1 = new ValueNode<int>(initValue:1);
+    Node<String> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:500), (){
+        completer.complete((value+1).toString());
+      });
+      return completer.future;
+    });
+    Node<double> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+      Completer completer = new Completer();
+      new Future.delayed(new Duration(milliseconds:700), (){
+        completer.complete((value+1.1));
+      });
+      return completer.future;
+    });
+    Node<int> node4 = Node.join([node1, node2, node3], (int value1, String value2, double value3)=>(value1+value3).toString()+value2);
+
+    List<String> output = [];
+    node4.onValue((String i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, ["5.12"]);
+    });
+  });
+
 }

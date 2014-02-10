@@ -30,7 +30,6 @@ class ValueNode<TYPE> extends Node<TYPE>{
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-
   void onInputValue(NodeEvent evt){
     if(lastValue != evt.value){
       // cache the latest value
@@ -96,6 +95,7 @@ class InjectiveNode<TYPE> extends DerivedNode<TYPE>{
 
   void signal(TYPE newValue, NodeEvent lastEvent){
     if(newValue != lastValue){
+
       // cache the latest value
       lastValue = newValue;
       // update the status of this node
@@ -128,7 +128,7 @@ class FilteredNode<TYPE> extends InjectiveNode<TYPE>{
   }
 
   void signal(TYPE newValue, NodeEvent lastEvent){
-    if(newValue != lastValue && newValue){
+    if(newValue){
       // update the status of this node
       dataReady = true;
       // cache the latest value
