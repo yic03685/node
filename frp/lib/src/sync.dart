@@ -1,106 +1,5 @@
 part of node;
 
-abstract class Node<TYPE> {
-
-  Node({Stream<NodeEvent> stream}) {
-    init();
-
-    if(stream!=null){
-      stream.listen(onInputValue);
-    }
-
-  }
-
-  //--------------------------------------------------------------------------------------------------------------------
-  //
-  //                                          Variables
-  //
-  //--------------------------------------------------------------------------------------------------------------------
-
-  StreamController<TYPE>  streamController;
-  Stream<NodeEvent>       outputStream;
-  TYPE                    lastValue;
-  bool                    dataReady = false;
-
-  //--------------------------------------------------------------------------------------------------------------------
-  //
-  //                                          Public Methods
-  //
-  //--------------------------------------------------------------------------------------------------------------------
-  void onValue(Function listener){
-  // register with the output stream
-    outputStream.listen((NodeEvent evt){
-      listener(evt.value);
-    });
-  }
-
-  /**
-    * For debug purposes
-    * @param listener Listen to a node event
-    */
-  void onEvent(Function listener){
-    outputStream.listen((NodeEvent evt){
-      listener(evt);
-    });
-  }
-
-  Node derive(Function map){
-    return new InjectiveNode<dynamic>(this, map);
-  }
-
-  Node safeDerive(Function map){
-    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).derive(map);
-  }
-
-  Node filter(Function map){
-    return new FilteredNode<dynamic>(this, map);
-  }
-
-  Node sample(int internalInMs);
-  Node add(Node n);
-  Node or(Node n);
-
-  //--------------------------------------------------------------------------------------------------------------------
-  //
-  //                                          Private Methods
-  //
-  //--------------------------------------------------------------------------------------------------------------------
-
-  void init(){
-    streamController = new StreamController<NodeEvent>();
-    outputStream = streamController.stream.asBroadcastStream();
-  }
-
-  void onInputValue();
-
-  //--------------------------------------------------------------------------------------------------------------------
-  //
-  //                                          Static Methods
-  //
-  //--------------------------------------------------------------------------------------------------------------------
-
-  static Stream<NodeEvent> joinInputStreams(List<Node> inputs){
-    if(inputs == null)
-      throw "Not a valid input node";
-
-    if(inputs.length==1){
-      return inputs[0].outputStream;
-    }
-    else{
-      StreamController<NodeEvent> controller = new StreamController<NodeEvent>();
-      inputs.forEach((Node node)=>node.outputStream.listen((NodeEvent evt)=>controller.add(evt)));
-      return controller.stream;
-    }
-  }
-
-  static Node join(List<Node> nodes, Function mapping, [isSync=true]){
-    if(isSync)
-      return new SyncMapNode(nodes, mapping);
-    else
-      return new AsyncMapNode(nodes, mapping);
-  }
-}
-
 class ValueNode<TYPE> extends Node<TYPE>{
   ValueNode({Stream<TYPE> stream, TYPE initValue}):super(stream:stream==null?null:stream.map((TYPE value)=>NodeEvent.next(value))){
     if(initValue!=null){
@@ -133,12 +32,14 @@ class ValueNode<TYPE> extends Node<TYPE>{
 
 
   void onInputValue(NodeEvent evt){
-    // cache the latest value
-    lastValue = evt.value;
-    // update the status of this node
-    dataReady = true;
-    // issue the event
-    streamController.add(evt);
+    if(lastValue != evt.value){
+      // cache the latest value
+      lastValue = evt.value;
+      // update the status of this node
+      dataReady = true;
+      // issue the event
+      streamController.add(evt);
+    }
   }
 }
 
@@ -150,7 +51,7 @@ class DerivedNode<TYPE> extends Node<TYPE>{
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  DerivedNode(Stream stream, Function mapping):super(stream:stream){
+  DerivedNode(Stream<NodeEvent>  stream, Function mapping):super(stream:stream){
     this.mapping = mapping;
   }
 
@@ -190,14 +91,17 @@ class InjectiveNode<TYPE> extends DerivedNode<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   void onInputValue(NodeEvent evt){
-    TYPE newValue = mapping(evt.value);
+    signal(mapping(evt.value),evt);
+  }
+
+  void signal(TYPE newValue, NodeEvent lastEvent){
     if(newValue != lastValue){
       // cache the latest value
       lastValue = newValue;
       // update the status of this node
       dataReady = true;
       // issue the event
-      streamController.add(NodeEvent.next(lastValue, this, evt));
+      streamController.add(NodeEvent.next(lastValue, this, lastEvent));
     }
   }
 }
@@ -220,14 +124,17 @@ class FilteredNode<TYPE> extends InjectiveNode<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   void onInputValue(NodeEvent evt){
-    TYPE newValue = mapping(evt.value);
+    signal(mapping(evt.value), evt);
+  }
+
+  void signal(TYPE newValue, NodeEvent lastEvent){
     if(newValue != lastValue && newValue){
       // update the status of this node
       dataReady = true;
       // cache the latest value
       lastValue = newValue;
       // issue the event
-      streamController.add(NodeEvent.next(evt.value, this, evt));
+      streamController.add(NodeEvent.next(lastEvent.value, this, lastEvent));
     }
   }
 }
@@ -260,7 +167,7 @@ class MapNode<TYPE> extends DerivedNode<TYPE>{
 
   bool dataIsReady()=>true;
 
-  TYPE getDataFromInputs(NodeEvent evt){
+  List getDataFromInputs(NodeEvent evt){
     Node eventTrigger = evt.node;
 
     List params = new List(inputs.length);
@@ -270,20 +177,23 @@ class MapNode<TYPE> extends DerivedNode<TYPE>{
       else
         params[i] = evt.value;
     }
-    return Function.apply(mapping,(params));
+    return params;
   }
 
   void onInputValue(NodeEvent evt){
     if(dataIsReady()){
-      TYPE newValue = getDataFromInputs(evt);
-      if(newValue != lastValue){
-        // cache the latest value
-        lastValue = newValue;
-        // update the status of this node
-        dataReady = true;
-        // issue the event
-        streamController.add(NodeEvent.next(lastValue, this, evt));
-      }
+      signal(Function.apply(mapping,getDataFromInputs(evt)),evt);
+    }
+  }
+
+  void signal(TYPE newValue, NodeEvent lastEvent){
+    if(newValue != lastValue){
+      // cache the latest value
+      lastValue = newValue;
+      // update the status of this node
+      dataReady = true;
+      // issue the event
+      streamController.add(NodeEvent.next(lastValue, this, lastEvent));
     }
   }
 }

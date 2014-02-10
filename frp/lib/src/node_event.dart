@@ -37,15 +37,12 @@ class NodeEvent  {
 
 
   void trace(){
-    if(path.length==0){
-      print("The node has no value");
-      return;
-    }
+    print("\nThe node event has current value "+ value.toString());
 
-    print("\nThe node event has current value "+ path[path.length-1].value.toString());
-
-    for(int i=path.length-2; i>=0; --i){
-      print("previous value: "+path[i].toString());
+    NodeEvent current = src;
+    while(current!=null){
+      print("previous value: "+current.value.toString());
+      current = current.src;
     }
   }
 
@@ -64,11 +61,7 @@ class NodeEvent  {
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  static create(dynamic value){
-
-  }
-
-  static next(dynamic value, [Node currentNode, NodeEvent src]){
+  static NodeEvent next(dynamic value, [Node currentNode, NodeEvent src]){
     return new NodeEvent._internal(value, currentNode, src);
   }
 
