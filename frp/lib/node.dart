@@ -51,24 +51,24 @@ abstract class Node<TYPE> {
     });
   }
 
-  Node derive(Function map){
+  Node map(Function map){
     return new InjectiveNode<dynamic>(this, map);
   }
 
-  Node pipeError(Function map){
+  Node mapError(Function map){
     return new ErrorHandleNode<dynamic>(this, map);
   }
 
-  Node deriveFromFuture(Function map){
+  Node mapFromFuture(Function map){
     return new FutureInjectiveNode<dynamic>(this, map);
   }
 
-  Node safeDerive(Function map){
-    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).derive(map);
+  Node safeMap(Function map){
+    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).map(map);
   }
 
-  Node safeDeriveFromFuture(Function map){
-    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).deriveFromFuture(map);
+  Node safeMapFromFuture(Function map){
+    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).mapFromFuture(map);
   }
 
   Node filter(Function map){
@@ -80,8 +80,13 @@ abstract class Node<TYPE> {
   }
 
   Node sample(int internalInMs);
-  Node add(Node n);
-  Node or(Node n);
+  Node and(Node n){
+    return join([this, n], (bool value0, bool value1)=>value0 && value1).filter((bool value)=>value);
+  }
+
+  Node or(Node n){
+    return join([this, n], (bool value0, bool value1)=>value0 || value1).filter((bool value)=>value);
+  }
 
   //--------------------------------------------------------------------------------------------------------------------
   //

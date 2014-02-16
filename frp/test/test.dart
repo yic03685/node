@@ -81,12 +81,12 @@ void main(){
     });
   });
 
-  test("Can derive a node with a mapping function", (){
+  test("Can map a node with a mapping function", (){
 
     Stream<int> s = createIntStream().asBroadcastStream();
     Node<int> node = new ValueNode<int>(stream:s,initValue:0);
-    Node<int> deNode = node.derive((int value)=>value+1);
-    Node<int> deNode2 = deNode.derive((int value)=>value+1);
+    Node<int> deNode = node.map((int value)=>value+1);
+    Node<int> deNode2 = deNode.map((int value)=>value+1);
 
     List<int> output = [];
     deNode2.onValue((int i)=>output.add(i));
@@ -96,16 +96,16 @@ void main(){
     });
   });
 
-  test("Can derive a node with an error function", (){
+  test("Can map a node with an error function", (){
 
     Node<int> node = new ValueNode<int>(initValue:0);
-    Node<int> deNode = node.derive((int value){
+    Node<int> deNode = node.map((int value){
       if(value<1)
         throw new NodeError(value-1);
       else
         return value+1;
-    }).pipeError((NodeError e)=>e.value);
-    Node<int> deNode2 = deNode.derive((int value)=>value);
+    }).mapError((NodeError e)=>e.value);
+    Node<int> deNode2 = deNode.map((int value)=>value);
 
     node<=1;
 
@@ -117,15 +117,15 @@ void main(){
     });
   });
 
-  test("Can derive a node with an error function and have correct event path", (){
+  test("Can map a node with an error function and have correct event path", (){
 
     Node<int> node = new ValueNode<int>(initValue:0);
-    Node<int> deNode = node.derive((int value){
+    Node<int> deNode = node.map((int value){
       if(value<1)
         throw new NodeError(value-1);
       else
         return value+1;
-    }).pipeError((NodeError e)=>e.value);
+    }).mapError((NodeError e)=>e.value);
 
     node<=1;
 
@@ -139,10 +139,10 @@ void main(){
     });
   });
 
-  test("Can derive a node to a different type", (){
+  test("Can map a node to a different type", (){
 
     Node<int> node = new ValueNode<int>(initValue:0);
-    Node<String> deNode = node.derive((int value)=>(value+1).toString());
+    Node<String> deNode = node.map((int value)=>(value+1).toString());
 
     List<int> output = [];
     deNode.onValue((String s)=>output.add(s));
@@ -155,8 +155,8 @@ void main(){
   test("Can have a valid node event (Path is valid)", (){
 
     Node<int> node = new ValueNode<int>(initValue:0);
-    Node<int> deNode = node.derive((int value)=>value+1);
-    Node<int> deNode2 = deNode.derive((int value)=>value+1);
+    Node<int> deNode = node.map((int value)=>value+1);
+    Node<int> deNode2 = deNode.map((int value)=>value+1);
 
     node<=1;
 
@@ -177,7 +177,7 @@ void main(){
 
     node<=1;
 
-    Node<int> deNode = filteredNode.derive((int value)=>value+1);
+    Node<int> deNode = filteredNode.map((int value)=>value+1);
 
     List<int> output = [];
     deNode.onValue((int i)=>output.add(i));
@@ -187,10 +187,10 @@ void main(){
     });
   });
 
-  test("Can safe derive a node", (){
+  test("Can safe map a node", (){
 
     Node<int> node = new ValueNode<int>(initValue:0);
-    Node<int> deNode = node.safeDerive((int value)=>value+1);
+    Node<int> deNode = node.safeMap((int value)=>value+1);
 
     node<=null;
 
@@ -206,7 +206,7 @@ void main(){
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
     Node<int> node2 = new ValueNode<int>(initValue:2);
-    Node<int> node3 = new ValueNode<int>(initValue:3).derive((int value)=>value+1);
+    Node<int> node3 = new ValueNode<int>(initValue:3).map((int value)=>value+1);
     Node<int> node4 = new ValueNode<int>(initValue:4);
     Node<int> deNode = Node.join([node1, node2, node3],(int value1, int value2, int value3)=>value1+value2+value3);
     Node<int> deNode2 = Node.join([node1, node2, node3, node4],(int value1, int value2, int value3, int value4)=>value1+value2+value3+value4);
@@ -223,7 +223,7 @@ void main(){
   test("Can join several nodes into an asynchronous one", (){
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:2).derive((int value)=>value+1);
+    Node<int> node2 = new ValueNode<int>(initValue:2).map((int value)=>value+1);
     Node<int> node3 = new ValueNode<int>();
     Node<int> adenode = Node.join([node1, node2, node3],(int value1, int value2, int value3){
       if(value1 == null || value2 == null || value3 == null)
@@ -267,12 +267,12 @@ void main(){
 
   });
 
-  test("Can derive a node with async mapping", (){
+  test("Can map a node with async mapping", (){
 
     Completer completer = new Completer();
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = node1.deriveFromFuture((int value)=>completer.future).derive((int value)=>value+1);
+    Node<int> node2 = node1.mapFromFuture((int value)=>completer.future).map((int value)=>value+1);
 
     List<int> output = [];
     node2.onValue((int i)=>output.add(i));
@@ -286,10 +286,10 @@ void main(){
     });
   });
 
-  test("Can derive a node with async mapping and catch the error if async fails", (){
+  test("Can map a node with async mapping and catch the error if async fails", (){
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = node1.deriveFromFuture((int value){
+    Node<int> node2 = node1.mapFromFuture((int value){
       Completer completer = new Completer();
       if(value<2){
         new Future.delayed(new Duration(milliseconds:500), (){
@@ -303,7 +303,7 @@ void main(){
       }
 
       return completer.future;
-    }).pipeError((NodeError error)=>error.value).derive((int value)=>value+1);
+    }).mapError((NodeError error)=>error.value).map((int value)=>value+1);
 
     node1<=2;
 
@@ -316,10 +316,10 @@ void main(){
     });
   });
 
-  test("Can derive a node with async mappingm, catch the error if async fails, and have a valid event path.", (){
+  test("Can map a node with async mappingm, catch the error if async fails, and have a valid event path.", (){
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = node1.deriveFromFuture((int value){
+    Node<int> node2 = node1.mapFromFuture((int value){
       Completer completer = new Completer();
       if(value<2){
         new Future.delayed(new Duration(milliseconds:500), (){
@@ -333,7 +333,7 @@ void main(){
       }
 
       return completer.future;
-    }).pipeError((NodeError error)=>error.value).derive((int value)=>value+1);
+    }).mapError((NodeError error)=>error.value).map((int value)=>value+1);
 
     node1<=2;
 
@@ -349,12 +349,12 @@ void main(){
   });
 
 
-  test("Can derive a node with async mapping and have correct node event path", (){
+  test("Can map a node with async mapping and have correct node event path", (){
 
     Completer completer = new Completer();
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = node1.deriveFromFuture((int value)=>completer.future).derive((int value)=>value+1);
+    Node<int> node2 = node1.mapFromFuture((int value)=>completer.future).map((int value)=>value+1);
 
     List output = [];
     node2.onEvent((NodeEvent evt){
@@ -376,8 +376,8 @@ void main(){
     Completer completer2 = new Completer();
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = node1.filterFromFuture((int value)=>completer.future).derive((int value)=>value+1);
-    Node<int> node3 = node1.filterFromFuture((int value)=>completer2.future).derive((int value)=>value+1);
+    Node<int> node2 = node1.filterFromFuture((int value)=>completer.future).map((int value)=>value+1);
+    Node<int> node3 = node1.filterFromFuture((int value)=>completer2.future).map((int value)=>value+1);
 
     List<int> output = [];
     node2.onValue((int i)=>output.add(i));
@@ -398,7 +398,7 @@ void main(){
     Completer completer2 = new Completer();
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:2).derive((int value)=>value+1);
+    Node<int> node2 = new ValueNode<int>(initValue:2).map((int value)=>value+1);
     Node<int> node3 = new ValueNode<int>(initValue:3);
 
     Node<int> node4 = Node.joinFromFuture([node1, node2, node3], (int value1, int value2, int value3){
@@ -423,7 +423,7 @@ void main(){
     Completer completer2 = new Completer();
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:2).derive((int value)=>value+1);
+    Node<int> node2 = new ValueNode<int>(initValue:2).map((int value)=>value+1);
     Node<int> node3 = new ValueNode<int>();
 
     Node<int> node4 = Node.joinFromFuture([node1, node2, node3], (int value1, int value2, int value3){
@@ -452,7 +452,7 @@ void main(){
     Completer completer2 = new Completer();
 
     Node<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:2).derive((int value)=>value+1);
+    Node<int> node2 = new ValueNode<int>(initValue:2).map((int value)=>value+1);
     Node<int> node3 = new ValueNode<int>(initValue:2);
 
     Node<int> node4 = Node.joinFromFuture([node1, node2, node3], (int value1, int value2, int value3){
@@ -466,7 +466,7 @@ void main(){
         });
         return completer.future;
       }
-    },false).pipeError((NodeError error)=>error.value+1);
+    },false).mapError((NodeError error)=>error.value+1);
 
     List<int> output = [];
     node4.onValue((int i)=>output.add(i));
@@ -476,10 +476,10 @@ void main(){
     });
   });
 
-  test("Can derive nodes between using sync or async mapping", (){
+  test("Can map nodes between using sync or async mapping", (){
 
     ValueNode<int> node = new ValueNode<int>(initValue:2);
-    Node<int> node1 = node.derive((int value)=>value+1).deriveFromFuture((int value){
+    Node<int> node1 = node.map((int value)=>value+1).mapFromFuture((int value){
 
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
@@ -488,7 +488,7 @@ void main(){
       return completer.future;
     }).filter((int value){
       return value>3;
-    }).derive((int value)=>value+1);
+    }).map((int value)=>value+1);
 
     node<=3;
     node<=1;
@@ -501,10 +501,10 @@ void main(){
     });
   });
 
-  test("Can derive nodes between using sync or async mapping and have correct path", (){
+  test("Can map nodes between using sync or async mapping and have correct path", (){
 
     ValueNode<int> node = new ValueNode<int>(initValue:2);
-    Node<int> node1 = node.derive((int value)=>value+1).deriveFromFuture((int value){
+    Node<int> node1 = node.map((int value)=>value+1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
@@ -512,7 +512,7 @@ void main(){
       return completer.future;
     }).filter((int value){
       return value>3;
-    }).derive((int value)=>value+1);
+    }).map((int value)=>value+1);
 
     List<int> path = [];
     node1.onEvent((NodeEvent evt){
@@ -526,14 +526,14 @@ void main(){
 
   test("Can join several (synchronous or asynchronous) nodes", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+    Node<int> node2 = new ValueNode<int>(initValue:1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
       });
       return completer.future;
     });
-    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+    Node<int> node3 = new ValueNode<int>(initValue:3).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:700), (){
         completer.complete(value+1);
@@ -552,14 +552,14 @@ void main(){
 
   test("Can join several (synchronous or asynchronous) nodes into a synchronus one and (if any of them has an error, it never executes)", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+    Node<int> node2 = new ValueNode<int>(initValue:1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
       });
       return completer.future;
     });
-    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+    Node<int> node3 = new ValueNode<int>(initValue:3).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:700), (){
         completer.completeError(value+1);
@@ -580,20 +580,20 @@ void main(){
 
   test("Can join several (synchronous or asynchronous) nodes into a synchronus one and (if any of them has an error but maps back, it's fine)", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+    Node<int> node2 = new ValueNode<int>(initValue:1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
       });
       return completer.future;
     });
-    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+    Node<int> node3 = new ValueNode<int>(initValue:3).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:700), (){
         completer.completeError(new NodeError(value+1));
       });
       return completer.future;
-    }).pipeError((NodeError error)=>error.value);
+    }).mapError((NodeError error)=>error.value);
     Node<int> node4 = Node.join([node1, node2, node3], (int value1, int value2, int value3){
       return value1 + value2 + value3;
     });
@@ -608,14 +608,14 @@ void main(){
 
   test("Can join several (synchronous or asynchronous) nodes and generate an error", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+    Node<int> node2 = new ValueNode<int>(initValue:1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
       });
       return completer.future;
     });
-    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+    Node<int> node3 = new ValueNode<int>(initValue:3).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:700), (){
         completer.complete(value+1);
@@ -624,7 +624,7 @@ void main(){
     });
     Node<int> node4 = Node.join([node1, node2, node3], (int value1, int value2, int value3){
       throw new NodeError(-1);
-    }).pipeError((NodeError error)=>error.value);
+    }).mapError((NodeError error)=>error.value);
 
     List<int> output = [];
     node4.onValue((int i)=>output.add(i));
@@ -636,14 +636,14 @@ void main(){
 
   test("Can join several (synchronous or asynchronous) nodes with a valid path", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<int> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+    Node<int> node2 = new ValueNode<int>(initValue:1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
       });
       return completer.future;
     });
-    Node<int> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+    Node<int> node3 = new ValueNode<int>(initValue:3).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:700), (){
         completer.complete(value+1);
@@ -662,14 +662,14 @@ void main(){
 
   test("Can join several nodes with different types", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<String> node2 = new ValueNode<int>(initValue:1).deriveFromFuture((int value){
+    Node<String> node2 = new ValueNode<int>(initValue:1).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete((value+1).toString());
       });
       return completer.future;
     });
-    Node<double> node3 = new ValueNode<int>(initValue:3).deriveFromFuture((int value){
+    Node<double> node3 = new ValueNode<int>(initValue:3).mapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:700), (){
         completer.complete((value+1.1));
@@ -686,9 +686,9 @@ void main(){
     });
   });
 
-  test("Can safe derive with an asynchronous mapping", (){
+  test("Can safe map with an asynchronous mapping", (){
     ValueNode<int> node1 = new ValueNode<int>(initValue:1);
-    Node<String> node2 = node1.safeDeriveFromFuture((int value){
+    Node<String> node2 = node1.safeMapFromFuture((int value){
       Completer completer = new Completer();
       new Future.delayed(new Duration(milliseconds:500), (){
         completer.complete(value+1);
@@ -707,6 +707,56 @@ void main(){
     });
   });
 
+  test("Can add two nodes", (){
+    Node<bool> node1 = new ValueNode<int>(initValue:1).map((int value)=>value==1);
+    Node<bool> node2 = new ValueNode<int>(initValue:2).map((int value)=>value==2);
+    Node<bool> node4 = new ValueNode<int>(initValue:1).map((int value)=>value==2);
+    Node<int> node3 = node1.and(node2).map((bool value)=>3);
+    Node<int> node5 = node1.and(node4).map((bool value)=>6);
 
+    List<int> output = [];
+    node3.onValue((int i)=>output.add(i));
+    node5.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [3]);
+    });
+  });
+
+  test("Can or two nodes", (){
+    Node<bool> node1 = new ValueNode<int>(initValue:1).map((int value)=>value==1);
+    Node<bool> node2 = new ValueNode<int>(initValue:2).map((int value)=>value==2);
+    Node<bool> node4 = new ValueNode<int>(initValue:1).map((int value)=>value==2);
+    Node<int> node3 = node1.or(node2).map((bool value)=>3);
+    Node<int> node5 = node1.or(node4).map((bool value)=>6);
+
+    List<int> output = [];
+    node3.onValue((int i)=>output.add(i));
+    node5.onValue((int i)=>output.add(i));
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [3,6]);
+    });
+  });
+
+  test("Can do recursion", (){
+
+    StreamController controller = new StreamController();
+    Stream s = controller.stream;
+    ValueNode<int> node1 = new ValueNode<int>(stream:s);
+    Node<int> node2 = node1.filter((int value)=>value>0).map((int value)=>value-1);
+
+    node1<=5;
+
+    List<int> output = [];
+    node2.onValue((int value){
+      output.add(value);
+      controller.add(value);
+    });
+
+    new Future.delayed(new Duration(milliseconds:1000), (){
+      expect(output, [4,3,2,1,0]);
+    });
+  });
 
 }
