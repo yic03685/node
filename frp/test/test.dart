@@ -743,7 +743,7 @@ void main(){
 
     StreamController controller = new StreamController();
     Stream s = controller.stream;
-    ValueNode<int> node1 = new ValueNode<int>(stream:s);
+    ValueNode<int> node1 = new ValueNode<int>();
     Node<int> node2 = node1.filter((int value)=>value>0).map((int value)=>value-1);
 
     node1<=5;
@@ -751,7 +751,7 @@ void main(){
     List<int> output = [];
     node2.onValue((int value){
       output.add(value);
-      controller.add(value);
+      node1<=value;
     });
 
     new Future.delayed(new Duration(milliseconds:1000), (){

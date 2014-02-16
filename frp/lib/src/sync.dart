@@ -68,23 +68,7 @@ class DerivedNode<TYPE> extends Node<TYPE>{
   //
   //--------------------------------------------------------------------------------------------------------------------
 
-  void signalError(TYPE newValue, NodeEvent lastEvent, NodeError error){
-    // update the status of this node
-    dataReady = false;
-    // issue the event
-    streamController.add(NodeEvent.nextWithError(error, newValue, this, lastEvent));
-  }
 
-  void signal(TYPE newValue, NodeEvent lastEvent){
-    if(newValue != lastValue){
-      // cache the latest value
-      lastValue = newValue;
-      // update the status of this node
-      dataReady = true;
-      // issue the event
-      streamController.add(NodeEvent.next(lastValue, this, lastEvent));
-    }
-  }
 }
 
 class InjectiveNode<TYPE> extends DerivedNode<TYPE>{
