@@ -38,6 +38,9 @@ class FutureValueNode<TYPE> extends ValueNode<TYPE>{
         // issue the event
         streamController.add(NodeEvent.next(value));
       }
+    },onError:(NodeError e){
+      // issue the event
+      streamController.add(NodeEvent.nextWithError(e));
     });
   }
 }
@@ -73,10 +76,15 @@ class FutureInjectiveNode<TYPE> extends InjectiveNode<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   void onInputValue(NodeEvent evt){
-    Future<TYPE> newFutureValue = mapping(evt.value);
+    Future<TYPE> newFutureValue;
+
+    newFutureValue = mapping(evt.value);
 
     newFutureValue.then((TYPE newValue){
       signal(newValue, evt);
+    }).catchError((NodeError e){
+      // There's an error occurred
+      signalError(null,evt,e);
     });
   }
 }
@@ -128,6 +136,9 @@ class FutureMapNode<TYPE> extends MapNode<TYPE>{
     if(dataIsReady()){
       Function.apply(mapping,getDataFromInputs(evt)).then((TYPE newValue){
         signal(newValue, evt);
+      }).catchError((NodeError error){
+        // There's an error occurred
+        signalError(null,evt,error);
       });
     }
   }

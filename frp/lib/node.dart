@@ -6,6 +6,7 @@ part "src/node_event.dart";
 part "src/sync.dart";
 part "src/async.dart";
 
+
 abstract class Node<TYPE> {
 
   Node({Stream<NodeEvent> stream}) {
@@ -54,12 +55,20 @@ abstract class Node<TYPE> {
     return new InjectiveNode<dynamic>(this, map);
   }
 
+  Node pipeError(Function map){
+    return new ErrorHandleNode<dynamic>(this, map);
+  }
+
   Node deriveFromFuture(Function map){
     return new FutureInjectiveNode<dynamic>(this, map);
   }
 
   Node safeDerive(Function map){
     return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).derive(map);
+  }
+
+  Node safeDeriveFromFuture(Function map){
+    return new FilteredNode<dynamic>(this, (TYPE value)=>value!=null).deriveFromFuture(map);
   }
 
   Node filter(Function map){
