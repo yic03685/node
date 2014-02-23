@@ -135,3 +135,12 @@ abstract class Node<TYPE> {
       return new FutureAsyncMapNode(nodes, mapping);
   }
 }
+
+Stream join(Stream a, Stream b){
+  StreamController sc = new StreamController();
+
+  a.listen((value)=>sc.add(value));
+  b.listen((value)=>sc.add(value));
+
+  return sc.stream;
+}

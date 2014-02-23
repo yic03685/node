@@ -68,7 +68,23 @@ class DerivedNode<TYPE> extends Node<TYPE>{
   //
   //--------------------------------------------------------------------------------------------------------------------
 
+  void signalError(TYPE newValue, NodeEvent lastEvent, NodeError error){
+    // update the status of this node
+    dataReady = false;
+    // issue the event
+    streamController.add(NodeEvent.nextWithError(error, newValue, this, lastEvent));
+  }
 
+  void signal(TYPE newValue, NodeEvent lastEvent){
+    if(newValue != lastValue){
+      // cache the latest value
+      lastValue = newValue;
+      // update the status of this node
+      dataReady = true;
+      // issue the event
+      streamController.add(NodeEvent.next(lastValue, this, lastEvent));
+    }
+  }
 }
 
 class InjectiveNode<TYPE> extends DerivedNode<TYPE>{
@@ -185,11 +201,11 @@ class FilteredNode<TYPE> extends InjectiveNode<TYPE>{
   }
 
   void signal(TYPE newValue, NodeEvent lastEvent){
-    if(newValue){
+    if(newValue && lastValue != lastEvent.value){
       // update the status of this node
       dataReady = true;
       // cache the latest value
-      lastValue = newValue;
+      lastValue = lastEvent.value;
       // issue the event
       streamController.add(NodeEvent.next(lastEvent.value, this, lastEvent));
     }
@@ -235,8 +251,10 @@ class MapNode<TYPE> extends DerivedNode<TYPE>{
     for(int i=0; i<inputs.length; ++i){
       if(inputs[i]!=eventTrigger)
         params[i] = inputs[i].lastValue;
-      else
+      else{
         params[i] = evt.value;
+      }
+
     }
     return params;
   }
