@@ -1,5 +1,6 @@
 name: FRP
-description: A sample web application
+description: A functional reactive programming lib for dart
+author: Yi Chen<yic036@gmail.com>
 dependencies:
   browser: any
   unittest: any
