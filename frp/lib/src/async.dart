@@ -38,7 +38,14 @@ class FutureValueNode<TYPE> extends ValueNode<TYPE>{
         // issue the event
         streamController.add(NodeEvent.next(value));
       }
+    },onError:(NodeError e){
+      // issue the event
+      streamController.add(NodeEvent.nextWithError(e));
     });
+  }
+
+  String toString(){
+    return "FutureValueNode("+this.hashCode.toString()+")";
   }
 }
 
@@ -51,6 +58,10 @@ class FutureDerivedNode<TYPE> extends DerivedNode<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   FutureDerivedNode(Stream<NodeEvent> stream, Function mapping):super(stream,mapping){
+  }
+
+  String toString(){
+    return "FutureDerivedNode("+this.hashCode.toString()+")";
   }
 
 }
@@ -73,11 +84,20 @@ class FutureInjectiveNode<TYPE> extends InjectiveNode<TYPE>{
   //--------------------------------------------------------------------------------------------------------------------
 
   void onInputValue(NodeEvent evt){
-    Future<TYPE> newFutureValue = mapping(evt.value);
+    Future<TYPE> newFutureValue;
+
+    newFutureValue = mapping(evt.value);
 
     newFutureValue.then((TYPE newValue){
       signal(newValue, evt);
+    }).catchError((NodeError e){
+      // There's an error occurred
+      signalError(null,evt,e);
     });
+  }
+
+  String toString(){
+    return "FutureInjectiveNode("+this.hashCode.toString()+")";
   }
 }
 
@@ -105,6 +125,10 @@ class FutureFilteredNode<TYPE> extends FilteredNode<TYPE>{
       signal(newValue, evt);
     });
   }
+
+  String toString(){
+    return "InjectiveNode("+this.hashCode.toString()+")";
+  }
 }
 
 class FutureMapNode<TYPE> extends MapNode<TYPE>{
@@ -128,8 +152,15 @@ class FutureMapNode<TYPE> extends MapNode<TYPE>{
     if(dataIsReady()){
       Function.apply(mapping,getDataFromInputs(evt)).then((TYPE newValue){
         signal(newValue, evt);
+      }).catchError((NodeError error){
+        // There's an error occurred
+        signalError(null,evt,error);
       });
     }
+  }
+
+  String toString(){
+    return "FutureMapNode("+this.hashCode.toString()+")";
   }
 }
 
@@ -140,6 +171,10 @@ class FutureSyncMapNode<TYPE> extends FutureMapNode<TYPE>{
   bool dataIsReady(){
     return inputs.every((Node node)=>node.dataReady);
   }
+
+  String toString(){
+    return "FutureSyncMapNode("+this.hashCode.toString()+")";
+  }
 }
 
 class FutureAsyncMapNode<TYPE> extends FutureMapNode<TYPE>{
@@ -149,5 +184,9 @@ class FutureAsyncMapNode<TYPE> extends FutureMapNode<TYPE>{
 
   bool dataIsReady(){
     return inputs.any((Node node)=>node.dataReady);
+  }
+
+  String toString(){
+    return "FutureAsyncMapNode("+this.hashCode.toString()+")";
   }
 }
