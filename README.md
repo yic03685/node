@@ -1,4 +1,6 @@
-FRP
+node.dart
 ===
 
-Functional Reactive Programming
+Functional Reactive Programming lib for dart
+
+
